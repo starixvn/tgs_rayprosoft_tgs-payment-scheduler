@@ -1,0 +1,43 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tgs.Payment.Scheduler", "Tgs.Payment.Scheduler\Tgs.Payment.Scheduler.csproj", "{155FDCF4-BD32-456B-ADDF-CF86ACFF9AD7}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tgs.Payment.Scheduler.UnitTests", "Tgs.Payment.Scheduler.UnitTests\Tgs.Payment.Scheduler.UnitTests.csproj", "{A8647224-11C8-4FA1-8429-F07BD8AF55B6}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A88939F6-D540-4220-B042-77D05300660F}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		NuGet.config = NuGet.config
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchedulerTest", "SchedulerTest\SchedulerTest.csproj", "{8D1D231C-9316-4214-A267-42AA278E6C06}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{155FDCF4-BD32-456B-ADDF-CF86ACFF9AD7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{155FDCF4-BD32-456B-ADDF-CF86ACFF9AD7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{155FDCF4-BD32-456B-ADDF-CF86ACFF9AD7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{155FDCF4-BD32-456B-ADDF-CF86ACFF9AD7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A8647224-11C8-4FA1-8429-F07BD8AF55B6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A8647224-11C8-4FA1-8429-F07BD8AF55B6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A8647224-11C8-4FA1-8429-F07BD8AF55B6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A8647224-11C8-4FA1-8429-F07BD8AF55B6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8D1D231C-9316-4214-A267-42AA278E6C06}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8D1D231C-9316-4214-A267-42AA278E6C06}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8D1D231C-9316-4214-A267-42AA278E6C06}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8D1D231C-9316-4214-A267-42AA278E6C06}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1DA82253-415E-42F3-AF18-AB631A3601E3}
+	EndGlobalSection
+EndGlobal

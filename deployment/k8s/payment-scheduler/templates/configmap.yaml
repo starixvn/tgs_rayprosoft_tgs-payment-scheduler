@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-{{ include "payment-scheduler.name" . }}
+  namespace: {{ .Values.namespace }}
+data:
+  appsettings.json: |
+    {
+      "Logging": {
+        "LogLevel": {
+          "Default": "Information",
+          "Microsoft": "Warning",
+          "Microsoft.Hosting.Lifetime": "Information"
+        },
+        "TgsLog": {
+          "LogLevel": {
+            "Default": "None",
+            "Microsoft": "Warning",
+            "Microsoft.Hosting.Lifetime": "None",
+            "TGS": "Information"
+          }
+        }
+      },
+      "AllowedHosts": "*",
+      "ConnectionStrings": {
+        "RedisConfigurationString": "{{ .Values.connectionStrings.redis }}",
+        "NatsMQ": "{{ .Values.nats.urls }}"
+      },
+      "RabbitMQ": {
+        "RabbitMQUrl": "{{ .Values.rabbit.url }}",
+        "UserName": "{{ .Values.rabbit.user }}",
+        "Password": "{{ .Values.rabbit.password }}",
+        "VirtualHost": "{{ .Values.rabbit.vhost  }}"
+      }
+    }
