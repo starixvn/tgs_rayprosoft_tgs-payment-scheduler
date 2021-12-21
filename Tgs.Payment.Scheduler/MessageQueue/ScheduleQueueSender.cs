@@ -1,6 +1,8 @@
-﻿using System.Text;
-using System.Text.Json;
+﻿using System.Text.Json;
+using Google.Protobuf;
+using Google.Protobuf.WellKnownTypes;
 using Tgs.MessageQueue;
+using Tgs.Payment.Protos;
 
 namespace Tgs.Payment.Scheduler.MessageQueue
 {
@@ -17,25 +19,27 @@ namespace Tgs.Payment.Scheduler.MessageQueue
 			_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 		}
 
-		public ValueTask SendScheduleResultAsync(string subject,Guid formId, DateTimeOffset expireTime)
+		public ValueTask SendScheduleResultAsync(string subject, Guid formId, DateTime scheduleTime)
 		{
-			var body = new ScheduleMessage
+			var request = new ScheduleRequest
 			{
 				Subject = subject,
 				FormId = formId,
-				ExpireTime = expireTime
+				ScheduleTime = Timestamp.FromDateTime(scheduleTime)
 			};
 
 			_logger.Log(LogLevel.Information,
 				new EventId(1000, nameof(ScheduleQueueSender)),
 				new
 				{
-					formId
+					subject,
+					formId,
+					scheduleTime
 				},
 				null,
 				(state, ex) => JsonSerializer.Serialize(state));
 
-			return _messageSender.PublishAsync(subject, Encoding.UTF8.GetBytes(JsonSerializer.Serialize(body)));
+			return _messageSender.PublishAsync(subject, request.ToByteArray());
 		}
 	}
 }

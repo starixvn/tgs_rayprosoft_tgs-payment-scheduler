@@ -25,7 +25,7 @@ namespace Tgs.Payment.Scheduler.Services
 			{
 				Subject = command.Subject,
 				FormId = command.FormId,
-				ExpireTime = Timestamp.FromDateTimeOffset(command.ExpireTime)
+				ScheduleTime = Timestamp.FromDateTime(command.ExpireTime)
 			};
 
 			_logger.LogInformation(

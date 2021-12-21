@@ -11,24 +11,23 @@ namespace Tgs.Payment.Scheduler.MessageQueue
 		private readonly ILogger<SchedulerHandler> _logger;
 
 		public SchedulerHandler(
-			ICommandService<ScheduleCommand> commandService, 
+			ICommandService<ScheduleCommand> commandService,
 			ILogger<SchedulerHandler> logger)
 		{
 			_commandService = commandService ?? throw new ArgumentNullException(nameof(commandService));
 			_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 		}
 
-		public ValueTask HandleAsync(byte[] data, CancellationToken cancellationToken = default)
+		public async ValueTask HandleAsync(byte[] data, CancellationToken cancellationToken = default)
 		{
 			var request = ScheduleRequest.Parser.ParseFrom(data);
 
-			_logger.LogInformation($"SchedulerHandler Request Subject:{request.Subject}, FormId:{request.FormId.ToGuid()}, ExpireTime:{request.ExpireTime.ToDateTimeOffset():yyyy/MM/dd HH:mm:ss}");
+			_logger.LogInformation(
+				$"Scheduler Handler Request Subject:{request.Subject}, Form Id:{request.FormId.ToGuid()}, Schedule Time:{request.ScheduleTime.ToDateTime():yyyy/MM/dd HH:mm:ss}");
 
-			var command = new ScheduleCommand(request.Subject, request.FormId, request.ExpireTime.ToDateTimeOffset());
+			var command = new ScheduleCommand(request.Subject, request.FormId, request.ScheduleTime.ToDateTime());
 
-			_commandService.ExecuteAsync(command).ConfigureAwait(false);
-
-			return ValueTask.CompletedTask;
+			await _commandService.ExecuteAsync(command).ConfigureAwait(false);
 		}
 	}
 }
