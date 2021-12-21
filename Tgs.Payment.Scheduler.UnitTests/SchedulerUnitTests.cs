@@ -30,7 +30,7 @@ namespace Tgs.Payment.Scheduler.UnitTests
 			var command = new ScheduleCommand(
 				"tgs.payment.umpay",
 				Guid.NewGuid(),
-				DateTimeOffset.Now.AddSeconds(20));
+				DateTime.Now.AddSeconds(20));
 
 			await sut.ExecuteAsync(command);
 
@@ -53,7 +53,7 @@ namespace Tgs.Payment.Scheduler.UnitTests
 			{
 				Subject = "tgs.payment.umpay",
 				FormId = Guid.NewGuid(),
-				ExpireTime = Timestamp.FromDateTimeOffset(DateTimeOffset.Now.AddSeconds(30))
+				ScheduleTime = Timestamp.FromDateTime(DateTime.Now.AddSeconds(30))
 			};
 
 			await sut
@@ -79,7 +79,7 @@ namespace Tgs.Payment.Scheduler.UnitTests
 			var command = new EmitScheduleCommand(
 				"tgs.payment.umpay",
 				Guid.NewGuid(),
-				DateTimeOffset.Now.AddSeconds(30));
+				DateTime.Now.AddSeconds(30));
 
 			//act
 			await sut
