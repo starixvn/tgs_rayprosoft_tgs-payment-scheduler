@@ -20,6 +20,7 @@ builder.ConfigureServices(services =>
 });
 
 var app = builder.Build();
+
 try
 {
 	await app.StartAsync();
@@ -30,7 +31,7 @@ try
 	{
 		Subject = "tgs.payment.tgs",
 		FormId = Guid.NewGuid(),
-		ExpireTime = Timestamp.FromDateTimeOffset(DateTimeOffset.Now.AddSeconds(10))
+		ScheduleTime = Timestamp.FromDateTime(DateTime.Now.AddSeconds(10))
 	};
 
 	logger.LogInformation("Send to Scheduler");

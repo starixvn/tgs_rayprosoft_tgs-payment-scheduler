@@ -2,6 +2,6 @@
 {
 	public interface IScheduleQueueSender
 	{
-		ValueTask SendScheduleResultAsync(string subject, Guid formId, DateTimeOffset expireTime);
+		ValueTask SendScheduleResultAsync(string subject, Guid formId, DateTime scheduleTime);
 	}
 }
