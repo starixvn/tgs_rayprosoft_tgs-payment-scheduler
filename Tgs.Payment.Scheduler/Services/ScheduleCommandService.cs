@@ -14,11 +14,11 @@ namespace Tgs.Payment.Scheduler.Services
 
 		public ValueTask ExecuteAsync(ScheduleCommand command, CancellationToken cancellationToken = default)
 		{
-			var timeSpan = command.ExpireTime - DateTimeOffset.Now;
+			var timeSpan = command.ScheduleTime - DateTimeOffset.Now;
 
 			_ = _client
 				.Schedule<JobExecutor>(
-					excutor => excutor.Execute(command.Subject, command.FormId, command.ExpireTime),
+					excutor => excutor.Execute(command.Subject, command.FormId, command.ScheduleTime),
 					timeSpan);
 
 			return ValueTask.CompletedTask;

@@ -12,7 +12,7 @@ namespace Tgs.Payment.Scheduler
 			_command = command ?? throw new ArgumentNullException(nameof(command));
 		}
 
-		public void Execute(string subject, Guid formId, DateTimeOffset expireTime)
+		public void Execute(string subject, Guid formId, DateTime expireTime)
 			=> _command.ExecuteAsync(new ExecuteCommand(subject, formId, expireTime));
 	}
 }
