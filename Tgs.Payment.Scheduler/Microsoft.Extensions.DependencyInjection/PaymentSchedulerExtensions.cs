@@ -10,8 +10,7 @@ namespace Microsoft.Extensions.DependencyInjection
 			return services
 				.RegisterAllServiceUtilityTypes(
 					Assembly.GetExecutingAssembly(),
-					ServiceLifetime.Transient)
-				.AddTransient<IScheduleQueueSender, ScheduleQueueSender>();
+					ServiceLifetime.Transient);
 		}
 	}
 }
