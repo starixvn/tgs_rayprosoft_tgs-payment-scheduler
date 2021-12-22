@@ -55,7 +55,7 @@ builder.Services.AddNatsMessageQueue(natsConfig =>
 
 			options.Url = configuration.GetConnectionString("NatsMQ");
 		})
-		.AddHandler<SchedulerHandler>("tgs.payment.countdown.schedule", "tgs.payment.countdown.schedule");
+		.AddReplyHandler<SchedulerHandler>("tgs.payment.countdown.schedule", "tgs.payment.countdown.schedule");
 });
 
 builder.Services.AddPaymentClient();
