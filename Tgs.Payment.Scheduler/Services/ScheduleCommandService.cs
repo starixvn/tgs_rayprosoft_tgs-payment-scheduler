@@ -14,7 +14,7 @@ namespace Tgs.Payment.Scheduler.Services
 
 		public ValueTask ExecuteAsync(ScheduleCommand command, CancellationToken cancellationToken = default)
 		{
-			var timeSpan = command.ScheduleTime - DateTimeOffset.Now;
+			var timeSpan = command.ScheduleTime - DateTime.Now;
 
 			_ = _client
 				.Schedule<JobExecutor>(
