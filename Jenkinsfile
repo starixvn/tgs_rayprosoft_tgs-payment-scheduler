@@ -1,3 +1,4 @@
+@Library('global-shared-library') _
 def message = "";
 
 pipeline {
@@ -89,11 +90,14 @@ pipeline {
         }
 
 		stage('Deploy to k8s') {
+            environment {
+                resource = getResources(env.k8s_config,env.kube_ns,"payment-scheduler")
+            }
 			steps {
 				withKubeConfig([credentialsId: env.k8s_config]) {
                     withCredentials([string(credentialsId: "tgs-${kube_ns}-connectionstring", variable: "tgs_tgs")]) {
                         sh '''
-                            helm template deployment/k8s/payment-scheduler \
+                            cat << EOF | yq e -P | helm template deployment/k8s/payment-scheduler \
                                 --set image.tag=${TAG} \
                                 --set namespace=${kube_ns} \
                                 --set autoscaling.enabled=${tgs_autoscaling} \
@@ -103,9 +107,13 @@ pipeline {
                                 --set rabbit.user="$tgs_rabbit_user" \
                                 --set rabbit.password="$tgs_rabbit_pass" \
                                 --set rabbit.vhost="$tgs_rabbit_vhost"
+                                -f -
+                            {
+                                "resources": $resources
+                            }
                         '''
                         sh '''
-                            helm template deployment/k8s/payment-scheduler \
+                            cat << EOF | yq e -P | helm template deployment/k8s/payment-scheduler \
                                 --set image.tag=${TAG} \
                                 --set namespace=${kube_ns} \
                                 --set autoscaling.enabled=${tgs_autoscaling} \
@@ -115,7 +123,10 @@ pipeline {
                                 --set rabbit.user="$tgs_rabbit_user" \
                                 --set rabbit.password="$tgs_rabbit_pass" \
                                 --set rabbit.vhost="$tgs_rabbit_vhost" \
-                                | kubectl -n ${kube_ns} apply -f -
+                                -f - | kubectl -n ${kube_ns} apply -f -
+                            {
+                                "resources": $resources
+                            }
                         '''
                     }
 				}
