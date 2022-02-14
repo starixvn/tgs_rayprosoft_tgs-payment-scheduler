@@ -106,7 +106,7 @@ pipeline {
                                 --set rabbit.url="$tgs_rabbit_url" \
                                 --set rabbit.user="$tgs_rabbit_user" \
                                 --set rabbit.password="$tgs_rabbit_pass" \
-                                --set rabbit.vhost="$tgs_rabbit_vhost"
+                                --set rabbit.vhost="$tgs_rabbit_vhost" \
                                 -f -
                             {
                                 "resources": $resources
@@ -123,7 +123,8 @@ pipeline {
                                 --set rabbit.user="$tgs_rabbit_user" \
                                 --set rabbit.password="$tgs_rabbit_pass" \
                                 --set rabbit.vhost="$tgs_rabbit_vhost" \
-                                -f - | kubectl -n ${kube_ns} apply -f -
+                                -f - \
+                                | kubectl -n ${kube_ns} apply -f -
                             {
                                 "resources": $resources
                             }
