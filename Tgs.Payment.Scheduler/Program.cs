@@ -1,28 +1,34 @@
-using System.Net;
-using System.Net.Sockets;
-using System.Reflection;
-using System.Text.Json;
 using Hangfire;
 using Hangfire.Console;
 using Hangfire.Redis;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi.Models;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Instrumentation.AspNetCore;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Tgs.Payment.Scheduler;
 using Tgs.Payment.Scheduler.MessageQueue;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Configuration
+	.AddJsonFile("/config/appsettings.json", true);
 
-builder.Host.ConfigureAppConfiguration(builder =>
-{
-	builder.AddJsonFile("/config/appsettings.json", true);
-})
-.ConfigureLogging((_, builder) =>
-{
-	builder.AddTgsLog();
-});
+builder.Logging
+	.AddOpenTelemetry(options =>
+	{
+		options.IncludeFormattedMessage = true;
+		options.ParseStateValues = true;
+		_ = options.AddFluentdForwardExporter(fluentOptions =>
+		{
+			var nodeIp = builder.Configuration.GetValue<string>("NODE_IP");
+			fluentOptions.Host = nodeIp;
+			fluentOptions.Tag = builder.Configuration.GetValue<string>("OTEL_SERVICE_NAME");
+			fluentOptions.UseMessagePack();
+		});
+	});
+
+builder.Services.AddControllers();
 
 builder.Services.AddSwaggerGen(c =>
 {
@@ -66,62 +72,35 @@ builder.Services
 	.AddHealthChecks()
 	.AddRedis(builder.Configuration.GetConnectionString("RedisConfigurationString"), "Redis Default");
 
-var app = builder.Build();
-
-app.MapHealthChecks("/health",
-	new HealthCheckOptions
+builder.Services
+	.AddOptions<OtlpExporterOptions>()
+	.Configure<IConfiguration>((options, conifg) =>
 	{
-		ResultStatusCodes = new Dictionary<HealthStatus, int>
-		{
-							{ HealthStatus.Healthy, StatusCodes.Status200OK },
-							{ HealthStatus.Unhealthy, StatusCodes.Status503ServiceUnavailable },
-							{ HealthStatus.Degraded, StatusCodes.Status500InternalServerError }
-		},
-		ResponseWriter = async (
-			context,
-			report) =>
-		{
-			var hostName = Dns.GetHostName();
-			var hostEntry = await Dns.GetHostEntryAsync(hostName);
-			var hostIp = Array.Find(hostEntry.AddressList,
-				x => x.AddressFamily == AddressFamily.InterNetwork);
-			var response = new
-			{
-				Data = new
-				{
-					Environment.MachineName,
-					HostName = hostName,
-					HostIp = hostIp?.ToString() ?? string.Empty,
-					Environment = builder.Environment.EnvironmentName,
-					OsVersion = $"{Environment.OSVersion}",
-					Version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(),
-					ProcessCount = Environment.ProcessorCount
-				},
-				Result = new
-				{
-					Status = report.Status.ToString(),
-					TotalDuration = report.TotalDuration.TotalSeconds,
-					DependencyServices = report.Entries.Select(srv => new
-					{
-						srv.Key,
-						Duration = srv.Value.Duration.TotalSeconds,
-						srv.Value.Description,
-						srv.Value.Data,
-						Exception = srv.Value.Exception?.Message,
-						Status = srv.Value.Status.ToString(),
-						Tags = srv.Value.Tags.Any() ? string.Join(',', srv.Value.Tags) : string.Empty
-					}).ToArray()
-				}
-			};
-			var json = JsonSerializer.Serialize(response,
-				new JsonSerializerOptions
-				{
-					WriteIndented = true
-				});
-			context.Response.ContentType = "application/json";
-			await context.Response.WriteAsync(json);
-		}
-	});
+		var nodeIp = conifg.GetValue<string>("NODE_IP");
+
+		if (!string.IsNullOrWhiteSpace(nodeIp))
+			options.Endpoint = new Uri($"http://{nodeIp}:4317");
+
+		conifg.GetSection("Opentelemetry:Tracing").Bind(options);
+	})
+	.Services
+	.AddOpenTelemetryTracing(builder => builder
+		.SetResourceBuilder(ResourceBuilder.CreateDefault()
+		.AddEnvironmentVariableDetector())
+		.AddSource("Tgs.*")
+		.AddAspNetCoreInstrumentation()
+		.AddHttpClientInstrumentation()
+		.AddProfileViewExporter()
+		.AddOtlpExporter())
+	.Configure<AspNetCoreInstrumentationOptions>(options => options.Filter =
+		httpContext => !httpContext.Request.Path.HasValue
+			|| !httpContext.Request.Path.StartsWithSegments("/swagger")
+			&& !httpContext.Request.Path.StartsWithSegments("/healthz")
+			&& !httpContext.Request.Path.StartsWithSegments("/metrics")
+			&& !new[] { "html", "ico", "png", "jpg" }.Any(
+				ext => httpContext.Request.Path.Value.EndsWith($".{ext}")));
+
+var app = builder.Build();
 
 app.UseHangfireDashboard(
 	"/hangfire",
@@ -135,4 +114,8 @@ app.UseHangfireDashboard(
 	});
 app.MapSwagger();
 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Tgs.Payment.Scheduler.Scheduler v1"));
+
+app.MapProfileViewer();
+app.MapHealthChecks("/healthz");
+
 app.Run();
