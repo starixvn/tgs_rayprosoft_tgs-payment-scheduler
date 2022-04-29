@@ -43,6 +43,7 @@ Selector labels
 */}}
 {{- define "payment-scheduler.selectorLabels" -}}
 app: {{ include "payment-scheduler.name" . }}
+tgs.kind: payment
 {{- end }}
 
 {{/*

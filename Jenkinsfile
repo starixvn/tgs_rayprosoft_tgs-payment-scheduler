@@ -69,7 +69,7 @@ pipeline {
 
 		stage('Push Docker Image') {
 			steps {
-				sh 'sudo docker push $ImageName:${TAG}'
+				sh 'docker push $ImageName:${TAG}'
 			}
 		}
 
@@ -95,39 +95,36 @@ pipeline {
                     withKubeConfig([credentialsId: env.k8s_config]) {
 
                         def resources = getResources(env.k8s_config, env.kube_ns, "payment-scheduler")
+                        def dedicated = getTgsSettings(env.k8s_config, env.kube_ns, "dedicated")
+                        def node_selector = getTgsSettings(env.k8s_config, env.kube_ns, "node-selector")
+
                         println resources
+                        println dedicated
+                        println node_selector
 
                         withCredentials([string(credentialsId: "tgs-${kube_ns}-connectionstring", variable: "tgs_tgs")]) {
                             sh """
                                 cat << EOF | yq e -P | helm template deployment/k8s/payment-scheduler \
+                                    -n ${kube_ns} \
                                     --set image.tag=${TAG} \
-                                    --set namespace=${kube_ns} \
                                     --set autoscaling.enabled=${tgs_autoscaling} \
-                                    --set connectionStrings.redis="$tgs_redis" \
-                                    --set nats.urls="$tgs_nats" \
-                                    --set rabbit.url="$tgs_rabbit_url" \
-                                    --set rabbit.user="$tgs_rabbit_user" \
-                                    --set rabbit.password="$tgs_rabbit_pass" \
-                                    --set rabbit.vhost="$tgs_rabbit_vhost" \
                                     -f -
                                 {
+                                    "nodeSelector": $node_selector,
+                                    "tolerations": [$dedicated],
                                     "resources": $resources
                                 }
                             """
                             sh """
                                 cat << EOF | yq e -P | helm template deployment/k8s/payment-scheduler \
+                                    -n ${kube_ns} \
                                     --set image.tag=${TAG} \
-                                    --set namespace=${kube_ns} \
                                     --set autoscaling.enabled=${tgs_autoscaling} \
-                                    --set connectionStrings.redis="$tgs_redis" \
-                                    --set nats.urls="$tgs_nats" \
-                                    --set rabbit.url="$tgs_rabbit_url" \
-                                    --set rabbit.user="$tgs_rabbit_user" \
-                                    --set rabbit.password="$tgs_rabbit_pass" \
-                                    --set rabbit.vhost="$tgs_rabbit_vhost" \
                                     -f - \
                                     | kubectl -n ${kube_ns} apply -f -
                                 {
+                                    "nodeSelector": $node_selector,
+                                    "tolerations": [$dedicated],
                                     "resources": $resources
                                 }
                             """
