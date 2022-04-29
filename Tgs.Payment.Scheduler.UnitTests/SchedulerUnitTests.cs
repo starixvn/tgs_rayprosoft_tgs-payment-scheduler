@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
@@ -89,6 +90,6 @@ public class SchedulerUnitTests
 		//assert
 		_ = fakeMessageSender
 			.Received(1)
-			.SendAsync(Arg.Any<string>(), Arg.Any<byte[]>());
+			.SendAsync(Arg.Any<string>(), Arg.Any<ReadOnlyMemory<byte>>(), Arg.Any<CancellationToken>());
 	}
 }
