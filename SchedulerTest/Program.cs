@@ -8,16 +8,13 @@ using Tgs.Payment.Protos;
 
 var builder = Host.CreateDefaultBuilder(args);
 
-builder.ConfigureServices(services =>
-{
-	services.AddNatsMessageQueue(config =>
-	{
-		config.ConfigQueueOptions((options, ap) =>
+builder.ConfigureServices(services => services
+	.AddMessageQueue()
+	.AddNatsMessageQueue(config => config
+		.ConfigQueueOptions((options, ap) =>
 		{
 			options.Url = "nats://localhost:4222";
-		});
-	});
-});
+		})));
 
 var app = builder.Build();
 

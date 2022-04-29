@@ -45,24 +45,23 @@ builder.Services.AddHangfire((sp, config) =>
 	{
 		Prefix = "hangfire:payment:"
 	};
-	config.UseRedisStorage(connectionString, options);
-
-	config.UseConsole();
+	_ = config
+		.UseRedisStorage(connectionString, options)
+		.UseConsole();
 });
 
 builder.Services.AddHangfireServer();
 
-builder.Services.AddNatsMessageQueue(natsConfig =>
-{
-	natsConfig
+builder.Services
+	.AddMessageQueue()
+	.AddNatsMessageQueue(natsConfig => natsConfig
 		.ConfigQueueOptions((options, sp) =>
 		{
 			var configuration = sp.GetRequiredService<IConfiguration>();
 
 			options.Url = configuration.GetConnectionString("NatsMQ");
 		})
-		.AddReplyHandler<SchedulerHandler>("tgs.payment.countdown.schedule", "tgs.payment.countdown.schedule");
-});
+		.AddReplyHandler<SchedulerHandler>("tgs.payment.countdown.schedule", "tgs.payment.countdown.schedule"));
 
 builder.Services.AddPaymentClient();
 
