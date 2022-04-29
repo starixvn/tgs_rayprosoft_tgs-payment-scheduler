@@ -1,10 +1,9 @@
 ﻿using System.ComponentModel;
 
-namespace Tgs.Payment.Scheduler
+namespace Tgs.Payment.Scheduler;
+
+public interface IJobExecutor
 {
-	public interface IJobExecutor
-	{
-		[DisplayName("{0}")]
-		public void Execute(string subject, Guid formId, DateTime expireTime);
-	}
+	[DisplayName("{0}")]
+	public Task ExecuteAsync(string subject, Guid formId, DateTime expireTime);
 }
