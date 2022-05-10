@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
@@ -14,82 +15,81 @@ using Tgs.Payment.Scheduler.MessageQueue;
 using Tgs.Payment.Scheduler.Services;
 using Tgs.ServiceUtility;
 
-namespace Tgs.Payment.Scheduler.UnitTests
+namespace Tgs.Payment.Scheduler.UnitTests;
+
+[TestFixture]
+public class SchedulerUnitTests
 {
-	[TestFixture]
-	public class SchedulerUnitTests
+	[Test]
+	public async Task Test_Create_Background_Job_Should_Success()
 	{
-		[Test]
-		public async Task Test_Create_Background_Job_Should_Success()
+		//arrange
+		var client = Substitute.For<IBackgroundJobClient>();
+		var sut = new ScheduleCommandService(client);
+
+		//act
+		var command = new ScheduleCommand(
+			"tgs.payment.umpay",
+			Guid.NewGuid(),
+			DateTime.Now.AddSeconds(20));
+
+		await sut.ExecuteAsync(command);
+
+		//assert
+		_ = client
+			.Received(1)
+			.Create(Arg.Any<Job>(), Arg.Any<IState>());
+	}
+
+	[Test]
+	public async Task Test_Receive_ScheduleRequest_From_Third_Party_Pay()
+	{
+		//arrange
+		var fakeCommandService = Substitute.For<ICommandService<ScheduleCommand>>();
+		var fakeLogger = new NullLogger<SchedulerHandler>();
+		var sut = new SchedulerHandler(fakeCommandService, fakeLogger);
+
+		//act
+		var request = new ScheduleRequest
 		{
-			//arrange
-			var client = Substitute.For<IBackgroundJobClient>();
-			var sut = new ScheduleCommandService(client);
+			Subject = "tgs.payment.umpay",
+			FormId = Guid.NewGuid(),
+			ScheduleTime = Timestamp.FromDateTime(DateTime.UtcNow.AddSeconds(30))
+		};
 
-			//act
-			var command = new ScheduleCommand(
-				"tgs.payment.umpay",
-				Guid.NewGuid(),
-				DateTime.Now.AddSeconds(20));
+		await sut
+			.HandleAsync(request.ToByteArray())
+			.ConfigureAwait(false);
 
-			await sut.ExecuteAsync(command);
+		//assert
+		_ = fakeCommandService
+			.Received(1)
+			.ExecuteAsync(Arg.Any<ScheduleCommand>());
+	}
 
-			//assert
-			_ = client
-				.Received(1)
-				.Create(Arg.Any<Job>(), Arg.Any<IState>());
-		}
+	[Test]
+	public async Task Test_Emit_Schedule_To_Third_Party_Pay()
+	{
+		//arrange
+		var fakeMessageSender = Substitute.For<IMessageSender>();
 
-		[Test]
-		public async Task Test_Receive_ScheduleRequest_From_Third_Party_Pay()
-		{
-			//arrange
-			var fakeCommandService = Substitute.For<ICommandService<ScheduleCommand>>();
-			var fakeLogger = new NullLogger<SchedulerHandler>();
-			var sut = new SchedulerHandler(fakeCommandService, fakeLogger);
+		var fakeLogger = new NullLogger<EmitScheduleCommandService>();
 
-			//act
-			var request = new ScheduleRequest
-			{
-				Subject = "tgs.payment.umpay",
-				FormId = Guid.NewGuid(),
-				ScheduleTime = Timestamp.FromDateTime(DateTime.UtcNow.AddSeconds(30))
-			};
+		var sut = new EmitScheduleCommandService(fakeMessageSender, fakeLogger);
 
-			await sut
-				.HandleAsync(request.ToByteArray())
-				.ConfigureAwait(false);
+		var command = new EmitScheduleCommand(
+			"tgs.payment.umpay",
+			Guid.NewGuid(),
+			DateTime.UtcNow.AddSeconds(30));
 
-			//assert
-			_ = fakeCommandService
-				.Received(1)
-				.ExecuteAsync(Arg.Any<ScheduleCommand>());
-		}
+		//act
+		await sut
+			.ExecuteAsync(command)
+			.ConfigureAwait(false);
 
-		[Test]
-		public async Task Test_Emit_Schedule_To_Third_Party_Pay()
-		{
-			//arrange
-			var fakeMessageSender = Substitute.For<IMessageSender>();
-
-			var fakeLogger = new NullLogger<EmitScheduleCommandService>();
-
-			var sut = new EmitScheduleCommandService(fakeMessageSender, fakeLogger);
-
-			var command = new EmitScheduleCommand(
-				"tgs.payment.umpay",
-				Guid.NewGuid(),
-				DateTime.UtcNow.AddSeconds(30));
-
-			//act
-			await sut
-				.ExecuteAsync(command)
-				.ConfigureAwait(false);
-
-			//assert
-			_ = fakeMessageSender
-				.Received(1)
-				.SendAsync(Arg.Any<string>(), Arg.Any<byte[]>());
-		}
+		//assert
+		_ = fakeMessageSender
+			.Received(1)
+			.SendAsync(Arg.Any<string>(), Arg.Any<ReadOnlyMemory<byte>>(), Arg.Any<CancellationToken>());
 	}
 }
