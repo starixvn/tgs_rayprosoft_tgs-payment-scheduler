@@ -1,14 +1,9 @@
-#See https://aka.ms/containerfastmode to understand how Visual Studio uses this Dockerfile to build your images for faster debugging.
-
-FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS base
+FROM hub.lumigame.com/base/dotnet/core/aspnet:6.0-alpine AS base
 WORKDIR /app
-EXPOSE 80
-EXPOSE 443
+EXPOSE 5000
 
-FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
+FROM hub.lumigame.com/base/dotnet/core/sdk:6.0-alpine AS build
 ARG BuildConfiguration=Release
-RUN --mount=type=secret,id=nuget,dst=/pat cp /pat ~/.nuget/NuGet/NuGet.Config
-RUN dotnet nuget remove source 'Microsoft Visual Studio Offline Packages' || true
 WORKDIR /src
 COPY ["NuGet.config", "."]
 COPY ["Tgs.Payment.Scheduler/Tgs.Payment.Scheduler.csproj", "Tgs.Payment.Scheduler/"]

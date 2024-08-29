@@ -10,9 +10,7 @@ using Tgs.Payment.Scheduler;
 using Tgs.Payment.Scheduler.MessageQueue;
 
 var builder = WebApplication.CreateBuilder(args);
-
-builder.Configuration
-	.AddJsonFile("/config/appsettings.json", true);
+builder.WebHost.UseSentry();
 
 builder.Logging
 	.AddOpenTelemetry(options =>
@@ -101,7 +99,6 @@ builder.Services
 				ext => httpContext.Request.Path.Value.EndsWith($".{ext}")));
 
 var app = builder.Build();
-
 app.UseHangfireDashboard(
 	"/hangfire",
 	new DashboardOptions()
