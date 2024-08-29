@@ -1,3 +1,4 @@
+using FluentdForward.OpenTelemetry.MessagePack;
 using Hangfire;
 using Hangfire.Console;
 using Hangfire.Redis;
@@ -19,10 +20,12 @@ builder.Logging
 		options.ParseStateValues = true;
 		_ = options.AddFluentdForwardExporter(fluentOptions =>
 		{
-			var nodeIp = builder.Configuration.GetValue<string>("NODE_IP");
+			var nodeIp = builder.Configuration.GetValue<string>("Otel:NodeIp");
 			fluentOptions.Host = nodeIp;
-			fluentOptions.Tag = builder.Configuration.GetValue<string>("OTEL_SERVICE_NAME");
-			fluentOptions.UseMessagePack();
+			fluentOptions.Tag = builder.Configuration.GetValue<string>("Otel:ServiceName");
+			fluentOptions.UseMessagePack(LogRecordFormatterResolver.GetResolverInstanceWithExtendInfo(
+					"MachineName",
+					() => Environment.MachineName));
 		});
 	});
 
@@ -74,10 +77,7 @@ builder.Services
 	.AddOptions<OtlpExporterOptions>()
 	.Configure<IConfiguration>((options, conifg) =>
 	{
-		var nodeIp = conifg.GetValue<string>("NODE_IP");
-
-		if (!string.IsNullOrWhiteSpace(nodeIp))
-			options.Endpoint = new Uri($"http://{nodeIp}:4317");
+		var nodeIp = conifg.GetValue<string>("Otel:NodeIp");
 
 		conifg.GetSection("Opentelemetry:Tracing").Bind(options);
 	})
