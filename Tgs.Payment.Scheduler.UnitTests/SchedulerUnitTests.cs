@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
@@ -9,11 +10,11 @@ using Hangfire.States;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using NUnit.Framework;
-using Tgs.MessageQueue;
 using Tgs.Payment.Protos;
 using Tgs.Payment.Scheduler.MessageQueue;
 using Tgs.Payment.Scheduler.Services;
 using Tgs.ServiceUtility;
+using Valhalla.MessageQueue;
 
 namespace Tgs.Payment.Scheduler.UnitTests;
 
@@ -58,7 +59,7 @@ public class SchedulerUnitTests
 		};
 
 		await sut
-			.HandleAsync(request.ToByteArray())
+			.HandleAsync("test", request.ToByteArray(), null)
 			.ConfigureAwait(false);
 
 		//assert
@@ -90,6 +91,6 @@ public class SchedulerUnitTests
 		//assert
 		_ = fakeMessageSender
 			.Received(1)
-			.SendAsync(Arg.Any<string>(), Arg.Any<ReadOnlyMemory<byte>>(), Arg.Any<CancellationToken>());
+			.SendAsync(Arg.Is("tgs.payment.umpay"), Arg.Any<ReadOnlyMemory<byte>>(), Arg.Any<IEnumerable<MessageHeaderValue>>(), Arg.Any<CancellationToken>());
 	}
 }

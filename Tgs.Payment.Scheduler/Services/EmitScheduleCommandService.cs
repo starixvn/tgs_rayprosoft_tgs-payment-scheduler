@@ -1,24 +1,15 @@
 ﻿using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
-using Tgs.MessageQueue;
 using Tgs.Payment.Protos;
 using Tgs.ServiceUtility;
+using Valhalla.MessageQueue;
 
 namespace Tgs.Payment.Scheduler.Services;
 
-public class EmitScheduleCommandService : ICommandService<EmitScheduleCommand>
+public class EmitScheduleCommandService(
+	IMessageSender messageSender,
+	ILogger<EmitScheduleCommandService> logger) : ICommandService<EmitScheduleCommand>
 {
-	private readonly IMessageSender _messageSender;
-	private readonly ILogger<EmitScheduleCommandService> _logger;
-
-	public EmitScheduleCommandService(
-		IMessageSender messageSender,
-		ILogger<EmitScheduleCommandService> logger)
-	{
-		_messageSender = messageSender ?? throw new ArgumentNullException(nameof(messageSender));
-		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
-	}
-
 	public ValueTask ExecuteAsync(EmitScheduleCommand command, CancellationToken cancellationToken = default)
 	{
 		var request = new ScheduleRequest
@@ -28,15 +19,15 @@ public class EmitScheduleCommandService : ICommandService<EmitScheduleCommand>
 			ScheduleTime = Timestamp.FromDateTime(command.ExpireTime)
 		};
 
-		_logger.LogInformation(
+		logger.LogInformation(
 			"Emit Schedule Result To Subject:{command.Subject}, FormId:{command.FormId}, ExpireTime:{command.ExpireTime:yyyy/MM/dd HH:mm:ss}",
 			command.Subject,
 			command.FormId,
 			command.ExpireTime);
 
-		return _messageSender.SendAsync(
+		return messageSender.SendAsync(
 			command.Subject,
-			request.ToByteArray(),
+			new ReadOnlyMemory<byte>(request.ToByteArray()),
 			cancellationToken: cancellationToken);
 	}
 }

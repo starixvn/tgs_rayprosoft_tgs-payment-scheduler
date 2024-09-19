@@ -1,10 +1,9 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: configmap-{{ include "payment-scheduler.name" . }}
-  namespace: {{ .Values.namespace }}
+  name: configmap-{{ include "payment-scheduler.name" . }}  
 data:
-  appsettings.json: |
+  appsettings.json: |  
     {
       "Logging": {
         "LogLevel": {
@@ -14,3 +13,37 @@ data:
         }
       }
     }
+  otel-collector-config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+
+    processors:
+      batch:
+
+    exporters:
+      otlp:
+        endpoint: "$NODE_IP:4317"
+        tls:
+          insecure: true
+      prometheus:
+        endpoint: "0.0.0.0:8889"
+        namespace: "tgs_payment_scheduler"
+
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+
+    service:
+      extensions: [health_check]
+      pipelines:
+        traces: 
+          receivers: [otlp]
+          processors:
+            - batch
+          exporters: [otlp]
+        metrics:
+          receivers: [otlp]
+          exporters: [prometheus]
+

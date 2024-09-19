@@ -1,28 +1,23 @@
-﻿using Tgs.MessageQueue;
-using Tgs.Payment.Protos;
+﻿using Tgs.Payment.Protos;
 using Tgs.Payment.Scheduler.Services;
 using Tgs.ServiceUtility;
+using Valhalla.MessageQueue;
 
 namespace Tgs.Payment.Scheduler.MessageQueue;
 
-public class SchedulerHandler : IMessageHandler
+public class SchedulerHandler(
+	ICommandService<ScheduleCommand> commandService,
+	ILogger<SchedulerHandler> logger) : IMessageHandler<ReadOnlyMemory<byte>>
 {
-	private readonly ICommandService<ScheduleCommand> _commandService;
-	private readonly ILogger<SchedulerHandler> _logger;
-
-	public SchedulerHandler(
-		ICommandService<ScheduleCommand> commandService,
-		ILogger<SchedulerHandler> logger)
-	{
-		_commandService = commandService ?? throw new ArgumentNullException(nameof(commandService));
-		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
-	}
-
-	public async ValueTask HandleAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
+	public async ValueTask HandleAsync(
+		string subject,
+		ReadOnlyMemory<byte> data,
+		IEnumerable<MessageHeaderValue>? headerValues,
+		CancellationToken cancellationToken = default)
 	{
 		var request = ScheduleRequest.Parser.ParseFrom(data.Span);
 
-		_logger.LogInformation(
+		logger.LogInformation(
 			"Scheduler Handler Request Subject:{request.Subject}, " +
 				"Form Id:{request.FormId.ToGuid()}, " +
 				"Schedule Time:{request.ScheduleTime.ToDateTime():yyyy/MM/dd HH:mm:ss}",
@@ -32,6 +27,6 @@ public class SchedulerHandler : IMessageHandler
 
 		var command = new ScheduleCommand(request.Subject, request.FormId, request.ScheduleTime.ToDateTime());
 
-		await _commandService.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+		await commandService.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
 	}
 }

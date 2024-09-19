@@ -1,3 +1,8 @@
+include:
+  - project: rayprosoft/tgs-ci-scripts
+    ref: main
+    file: GitLab/Templates/gitlab-job-templates.yml
+
 variables:
   ImageName: pgtgs/payment-scheduler
   TgsSettingKey: payment-scheduler
@@ -13,122 +18,53 @@ stages:
   - deploy-prod
 
 build-code:
-  stage: build
-  script:
-    - dotnet build -c $BuildConfiguration
-  only:
-    - merge_requests
-    - main
-  cache:
-    key: $BuildCacheKey
-    untracked: true    
+  extends: .build-code-template
 
 unit-test:
-  stage: test
-  script:
-    - dotnet test -c $BuildConfiguration -l:"junit;LogFilePath=../TestReports/{assembly}-TestReport.xml" --no-restore --no-build
-  needs:
-    - build-code      
-  only:
-    - merge_requests
-    - main
-  cache:
-    key: $BuildCacheKey
-    untracked: true
-    policy: pull
-  artifacts:
-    when: always
-    reports:
-      junit: ./TestReports/*-TestReport.xml
+  extends: .unit-test-template  
 
 push-docker-image:
-  stage: publish
-  needs:
-    - build-code      
-    - unit-test
-  only:
-    - main
-  cache:
-    key: $BuildCacheKey
-    untracked: true
-    policy: pull
-  script:
-    - export Tag="$(date -d $CI_PIPELINE_CREATED_AT +%Y%m%d%H%M).$CI_PIPELINE_IID"
-    - dotnet build "Tgs.Payment.Scheduler/Tgs.Payment.Scheduler.csproj" -c $BuildConfiguration -t:ContainerBuild -p:DockerfileTag="$ImageName:$Tag" --no-restore
-    - docker push $ImageName:$Tag
+  extends: .push-docker-image-template
+  script:    
+    - push_docker "Tgs.Payment.Scheduler" $ImageName $Tag
 
 push-k8s-template:
-  stage: publish
-  needs:
-    - unit-test
-  only:
-    - main
+  extends: .push-k8s-template
   script:
-    - export Tag="$(date -d $CI_PIPELINE_CREATED_AT +%Y%m%d%H%M).$CI_PIPELINE_IID"
-    - mkdir -p artifacts/k8s
-    - cp -R deployment/k8s/$HelmTemplateFolderName artifacts/k8s/
-    - |
-      yq -i e '
-        .image.repository = strenv(ImageName) |
-        .image.tag = strenv(Tag)
-      ' artifacts/k8s/$HelmTemplateFolderName/values.yaml
-  artifacts:
-    name: HelmTemplate
-    untracked: false
-    expire_in: "180 days"
-    paths:
-      - artifacts/**/*
+    - push_k8s_template $HelmTemplateFolderName $ImageName $Tag
 
 deploy-dev:
-  variables:
-    GIT_STRATEGY: none
+  extends: .deploy-k8s-template
+  variables:    
     namespace: dev
+    kube_config: KubeConfig_Raypro_dev
   environment:
     name: dev
   stage: deploy-dev
+  tags:
+  - dev
+  - kubernetes
+  - deploy
   needs:
     - push-docker-image
     - job: push-k8s-template
       artifacts: true
   only:
     - main
-  before_script:
-    - export KUBECONFIG=$KubeConfig_Raypro_dev
-  script:
-    - export resources=$(kubectl get cm resources-setting -o jsonpath={.data.$TgsSettingKey})
-    - export dedicated=$(kubectl get cm tgs-settings -o jsonpath={.data.dedicated})
-    - export node_selector=$(kubectl get cm tgs-settings -o jsonpath={.data.node-selector})
-    - |
-      cat << EOF | yq e -P | helm template artifacts/k8s/$HelmTemplateFolderName \
-        -n $namespace \
-        --name-template tgs \
-        -f - 
-      {
-        "nodeSelector": $node_selector,
-        "tolerations": [$dedicated],
-        "resources": $resources
-      }
-      EOF
-    - |
-      cat << EOF | yq e -P | helm template artifacts/k8s/$HelmTemplateFolderName \
-        -n $namespace \
-        --name-template tgs \
-        -f - \
-        | kubectl -n $namespace apply -f -
-      {
-        "nodeSelector": $node_selector,
-        "tolerations": [$dedicated],
-        "resources": $resources
-      }
-      EOF
+  when: on_success
 
 deploy-staging:
+  extends: .deploy-k8s-template
   variables:
-    GIT_STRATEGY: none
     namespace: staging
+    kube_config: KubeConfig_Raypro_staging
   environment:
     name: staging
   stage: deploy-staging
+  tags:
+    - staging
+    - kubernetes
+    - deploy
   needs:
     - deploy-dev
     - job: push-k8s-template
@@ -136,76 +72,23 @@ deploy-staging:
   only:
     - main
   when: manual
-  before_script:
-    - export KUBECONFIG=$KubeConfig_Raypro_staging
-  script:
-    - export resources=$(kubectl get cm resources-setting -o jsonpath={.data.$TgsSettingKey})
-    - export dedicated=$(kubectl get cm tgs-settings -o jsonpath={.data.dedicated})
-    - export node_selector=$(kubectl get cm tgs-settings -o jsonpath={.data.node-selector})
-    - |
-      cat << EOF | yq e -P | helm template artifacts/k8s/$HelmTemplateFolderName \
-        -n $namespace \
-        --name-template tgs \
-        -f - 
-      {
-        "nodeSelector": $node_selector,
-        "tolerations": [$dedicated],
-        "resources": $resources
-      }
-      EOF
-    - |
-      cat << EOF | yq e -P | helm template artifacts/k8s/$HelmTemplateFolderName \
-        -n $namespace \
-        --name-template tgs \
-        -f - \
-        | kubectl -n $namespace apply -f -
-      {
-        "nodeSelector": $node_selector,
-        "tolerations": [$dedicated],
-        "resources": $resources
-      }
-      EOF
 
 deploy-prod:
+  extends: .deploy-k8s-template
   variables:
-    GIT_STRATEGY: none
     namespace: prod
+    kube_config: KubeConfig_Raypro_prod
   environment:
     name: prod
   stage: deploy-prod
+  tags:
+    - prod
+    - kubernetes
+    - deploy
   needs:
     - deploy-staging
     - job: push-k8s-template
       artifacts: true
   only:
     - main
-  when: manual
-  before_script:
-    - export KUBECONFIG=$KubeConfig_Raypro_prod
-  script:
-    - export resources=$(kubectl get cm resources-setting -o jsonpath={.data.$TgsSettingKey})
-    - export dedicated=$(kubectl get cm tgs-settings -o jsonpath={.data.dedicated})
-    - export node_selector=$(kubectl get cm tgs-settings -o jsonpath={.data.node-selector})
-    - |
-      cat << EOF | yq e -P | helm template artifacts/k8s/$HelmTemplateFolderName \
-        -n $namespace \
-        --name-template tgs \
-        -f - 
-      {
-        "nodeSelector": $node_selector,
-        "tolerations": [$dedicated],
-        "resources": $resources
-      }
-      EOF
-    - |
-      cat << EOF | yq e -P | helm template artifacts/k8s/$HelmTemplateFolderName \
-        -n $namespace \
-        --name-template tgs \
-        -f - \
-        | kubectl -n $namespace apply -f -
-      {
-        "nodeSelector": $node_selector,
-        "tolerations": [$dedicated],
-        "resources": $resources
-      }
-      EOF
+  when: manual  

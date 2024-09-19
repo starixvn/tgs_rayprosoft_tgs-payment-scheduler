@@ -1,11 +1,13 @@
+﻿using FluentdForward.OpenTelemetry.MessagePack;
 using Hangfire;
 using Hangfire.Console;
 using Hangfire.Redis;
 using Microsoft.OpenApi.Models;
+using NATS.Client.Core;
 using OpenTelemetry.Exporter;
-using OpenTelemetry.Instrumentation.AspNetCore;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using Tgs.MessageQueue.Nats.Serializers;
 using Tgs.Payment.Scheduler;
 using Tgs.Payment.Scheduler.MessageQueue;
 
@@ -21,10 +23,12 @@ builder.Logging
 		options.ParseStateValues = true;
 		_ = options.AddFluentdForwardExporter(fluentOptions =>
 		{
-			var nodeIp = builder.Configuration.GetValue<string>("NODE_IP");
+			var nodeIp = builder.Configuration.GetValue<string>("NODE_IP")!;
 			fluentOptions.Host = nodeIp;
-			fluentOptions.Tag = builder.Configuration.GetValue<string>("OTEL_SERVICE_NAME");
-			fluentOptions.UseMessagePack();
+			fluentOptions.Tag = builder.Configuration.GetValue<string>("OTEL_SERVICE_NAME")!;
+			fluentOptions.UseMessagePack(LogRecordFormatterResolver.GetResolverInstanceWithExtendInfo(
+					"MachineName",
+					() => Environment.MachineName));
 		});
 	});
 
@@ -53,15 +57,17 @@ builder.Services.AddHangfire((sp, config) =>
 builder.Services.AddHangfireServer();
 
 builder.Services
+	.AddKeyedSingleton("Nats", (sp, _) => new NatsConnection(NatsOpts.Default with
+	{
+		Url = builder.Configuration.GetConnectionString("Nats")!,
+		SerializerRegistry = TgsNatsSerializerRegistration.Default
+	}))
 	.AddMessageQueue()
 	.AddNatsMessageQueue(natsConfig => natsConfig
-		.ConfigQueueOptions((options, sp) =>
-		{
-			var configuration = sp.GetRequiredService<IConfiguration>();
-
-			options.Url = configuration.GetConnectionString("NatsMQ");
-		})
-		.AddReplyHandler<SchedulerHandler>("tgs.payment.countdown.schedule", "tgs.payment.countdown.schedule"))
+		.ConfigureResolveConnection(sp => sp.GetRequiredKeyedService<NatsConnection>("Nats"))
+		.AddReplyHandler< SchedulerHandler>(
+			"tgs.payment.countdown.schedule",
+			"tgs.payment.countdown.schedule"))
 	.AddNatsGlobPatternExchange("*");
 
 builder.Services.AddPaymentClient();
@@ -70,8 +76,9 @@ builder.Services.AddScheduler();
 
 builder.Services
 	.AddHealthChecks()
-	.AddRedis(builder.Configuration.GetConnectionString("RedisConfigurationString"), "Redis Default");
+	.AddRedis(builder.Configuration.GetConnectionString("RedisConfigurationString")!, "Redis Default");
 
+var instrumentationExtenionFilters = new[] { "html", "ico", "png", "jpg" };
 builder.Services
 	.AddOptions<OtlpExporterOptions>()
 	.Configure<IConfiguration>((options, conifg) =>
@@ -84,21 +91,24 @@ builder.Services
 		conifg.GetSection("Opentelemetry:Tracing").Bind(options);
 	})
 	.Services
-	.AddOpenTelemetryTracing(builder => builder
+	.AddOpenTelemetry()
+	.WithTracing(builder => builder
 		.SetResourceBuilder(ResourceBuilder.CreateDefault()
 		.AddEnvironmentVariableDetector())
 		.AddSource("Tgs.*")
-		.AddAspNetCoreInstrumentation()
-		.AddHttpClientInstrumentation()
-		.AddProfileViewExporter()
-		.AddOtlpExporter())
-	.Configure<AspNetCoreInstrumentationOptions>(options => options.Filter =
+		.AddSource("TGS.*")
+		.AddSource("Valhalla.*")
+		.AddAspNetCoreInstrumentation(options => options.Filter =
 		httpContext => !httpContext.Request.Path.HasValue
 			|| !httpContext.Request.Path.StartsWithSegments("/swagger")
 			&& !httpContext.Request.Path.StartsWithSegments("/healthz")
 			&& !httpContext.Request.Path.StartsWithSegments("/metrics")
-			&& !new[] { "html", "ico", "png", "jpg" }.Any(
-				ext => httpContext.Request.Path.Value.EndsWith($".{ext}")));
+			&& !httpContext.Request.Path.StartsWithSegments("/profiler/")
+			&& !instrumentationExtenionFilters.Any(
+				ext => httpContext.Request.Path.Value.EndsWith($".{ext}")))
+		.AddHttpClientInstrumentation()
+		.AddProfileViewExporter()
+		.AddOtlpExporter());
 
 var app = builder.Build();
 

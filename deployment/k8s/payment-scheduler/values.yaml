@@ -5,19 +5,20 @@
 replicaCount: 1
 
 image:
-  repository: harbor.rpgp.cc/tgs/payment-scheduler
+  repository: pgtgs/payment-scheduler
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
 
 imagePullSecrets:
   - name: dockerhub
+
 nameOverride: "payment-scheduler"
 fullnameOverride: "payment-scheduler"
 
 podAnnotations:
   prometheus.io/path: /metrics
-  prometheus.io/port: "52325"
+  prometheus.io/port: "8889"
   prometheus.io/scrape: "true"
 
 podSecurityContext:
