@@ -99,6 +99,7 @@ builder.Services
 				ext => httpContext.Request.Path.Value.EndsWith($".{ext}")));
 
 var app = builder.Build();
+
 app.UseHangfireDashboard(
 	"/hangfire",
 	new DashboardOptions()
