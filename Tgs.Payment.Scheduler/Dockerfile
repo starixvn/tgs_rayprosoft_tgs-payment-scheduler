@@ -1,8 +1,8 @@
-FROM hub.lumigame.com/base/dotnet/core/aspnet:6.0-alpine AS base
+FROM hub.lumigame.com/base/dotnet/core/aspnet:8.0-alpine-24h1.1 AS base
 WORKDIR /app
 EXPOSE 5000
 
-FROM hub.lumigame.com/base/dotnet/core/sdk:6.0-alpine AS build
+FROM hub.lumigame.com/base/dotnet/core/sdk:8.0 AS build
 ARG BuildConfiguration=Release
 WORKDIR /src
 COPY ["NuGet.config", "."]
